@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Environments
+.venv/
+venv/
+env/
+.python-version
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*~
+
+# Data — users place CSVs in data/, we don't ship them
+data/*.csv
+data/*.json
+data/*.parquet
+!data/.gitkeep
+
+# Pipeline outputs
+kfold/results/
+*.keras
+*.joblib
+*.npz
+
+# HPC
+slurm-*.out
+
+# Latex (in case anyone runs tex builds locally)
+*.aux
+*.log
+*.out
+*.fdb_latexmk
+*.fls
+*.synctex.gz

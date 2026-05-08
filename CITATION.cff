@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+title: "K-Fold Stacking for Pore Pressure Prediction"
+message: "If you use this software, please cite the accompanying paper."
+type: software
+authors:
+  - family-names: Patel
+    given-names: Pranav
+    affiliation: "Khoury College of Computer Sciences, Northeastern University"
+    email: pranavjpatel.08@gmail.com
+  - family-names: Amjad
+    given-names: "Muhammad Raiees"
+    affiliation: "Department of Computer Science, Bahria University"
+    email: mraiees@buic.bahria.edu.pk
+  - family-names: Varghese
+    given-names: "Rohan Benjamin"
+    affiliation: "Khoury College of Computer Sciences, Northeastern University"
+    email: varghese.roh@northeastern.edu
+  - family-names: Amjad
+    given-names: Tehmina
+    affiliation: "Khoury College of Computer Sciences, Northeastern University"
+    email: tehmina.amj@gmail.com
+repository-code: "https://github.com/pranavpatel08/KFold-GeoScience"
+license: MIT
+preferred-citation:
+  type: conference-paper
+  title: "Simple Averaging vs. Learned Stacking in K-Fold Ensembles: Evidence from Pore Pressure Prediction"
+  authors:
+    - family-names: Patel
+      given-names: Pranav
+    - family-names: Amjad
+      given-names: "Muhammad Raiees"
+    - family-names: Varghese
+      given-names: "Rohan Benjamin"
+    - family-names: Amjad
+      given-names: Tehmina
+  conference:
+    name: "IEEE International Joint Conference on Neural Networks (IJCNN)"
+  year: 2026
+  notes: "to appear"

@@ -1,0 +1,12 @@
+# Python 3.12+ required
+# Pin TensorFlow exactly: 2.20 → 3.x is API-breaking.
+tensorflow==2.20.*
+scikit-learn>=1.4
+xgboost>=2.0
+pandas>=2.0
+numpy>=1.26,<2.0
+joblib>=1.3
+psutil>=5.9
+matplotlib>=3.8
+seaborn>=0.13
+scipy>=1.11

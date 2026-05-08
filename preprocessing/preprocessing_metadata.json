@@ -1,0 +1,53 @@
+{
+  "train_wells": [
+    "TURKWAL DEEP 01",
+    "Balkassar OXY 02",
+    "SHAHAB 1A",
+    "BHANGALI-01",
+    "AMIRPUR-01",
+    "RAJIAN-01",
+    "MISSA KESWAL-01",
+    "JOYAMAIR-4",
+    "MISSA KESWAL-03",
+    "QAZIAN -1X",
+    "KAL-01",
+    "PINDORI-3",
+    "PINDORI-1"
+  ],
+  "validation_wells": [
+    "MINWAL-X-1",
+    "MINWAL-2",
+    "MISSA KESWAL-02",
+    "Balkassar OXY 01"
+  ],
+  "test_wells": [
+    "RAJIAN-03A",
+    "PINDORI-2",
+    "TURKWAL DEEP X 2",
+    "Balkassar POL 01"
+  ],
+  "predictor_features": [
+    "tvd",
+    "dt",
+    "dt_nct",
+    "gr",
+    "sphi",
+    "hp",
+    "ob",
+    "rhob_combined",
+    "res_deep",
+    "eaton_ratio",
+    "hp_gradient",
+    "ob_gradient",
+    "tvd_normalized"
+  ],
+  "target_options": [
+    "ppp",
+    "pressure_ratio",
+    "overpressure"
+  ],
+  "train_samples": 157710,
+  "val_samples": 28360,
+  "test_samples": 84904,
+  "feature_coverage_threshold": 0.65
+}
