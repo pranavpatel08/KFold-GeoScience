@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simple Averaging vs. Learned Stacking · IJCNN 2026</title>
+<style>
+:root{
+  --ink-0:#FFFFFF;
+  --ink-1:#F5F7F8;
+  --ink-2:#EDF1F3;
+  --line:#D6DDE2;
+  --line-soft:#E7ECEF;
+  --text:#16232B;
+  --muted:#566570;
+  --muted-dim:#7C8A92;
+  --amber:#B45309;
+  --teal:#0B7285;
+  --red:#DC2626;
+  --sans:"Helvetica Neue",Helvetica,Arial,"Segoe UI",Roboto,system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--ink-0);color:var(--text);font-family:var(--sans);overflow:hidden}
+
+#viewport{position:fixed;inset:0;display:flex;align-items:center;justify-content:flex-start;background:var(--ink-0)}
+.stage{width:1280px;height:720px;position:relative;transform-origin:left center;background:var(--ink-0)}
+
+.slide{position:absolute;inset:0;display:none;padding:56px 80px 56px 140px;background:var(--ink-0)}
+.slide.is-active{display:flex;flex-direction:column;justify-content:center}
+
+/* depth rail */
+.rail{position:absolute;left:0;top:0;bottom:0;width:104px;border-right:1px solid var(--line-soft);
+  background:linear-gradient(var(--ink-1),var(--ink-0));overflow:hidden}
+.rail-head{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--muted-dim);
+  text-transform:uppercase;padding:20px 0 0 16px}
+.rail-track{position:absolute;left:30px;top:64px;bottom:30px;width:2px;background:var(--line)}
+.rail-fill{position:absolute;left:30px;top:64px;width:2px;background:var(--teal);height:0;transition:height .35s ease}
+.rail-dot{position:absolute;left:25px;width:12px;height:12px;border-radius:50%;background:var(--amber);
+  box-shadow:0 0 0 4px rgba(180,83,9,.18);transition:top .35s ease;top:64px}
+.rail-tick{position:absolute;left:30px;width:8px;height:1px;background:var(--line)}
+.rail-depth{position:absolute;left:46px;font-family:var(--mono);font-size:11px;color:var(--muted);transition:color .35s ease}
+.rail-depth.on{color:var(--amber);font-weight:700}
+.rail-now{position:absolute;left:46px;font-family:var(--mono);font-size:12px;color:var(--amber);font-weight:700;transition:top .35s ease}
+
+.eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--teal);margin-bottom:20px;display:flex;align-items:center;gap:12px}
+.eyebrow::before{content:"";width:26px;height:2px;background:var(--teal);display:inline-block}
+.eyebrow.amber{color:var(--amber)}
+.eyebrow.amber::before{background:var(--amber)}
+.eyebrow.red{color:var(--red)}
+.eyebrow.red::before{background:var(--red)}
+
+h1{font-size:60px;line-height:1.08;font-weight:800;letter-spacing:-.02em;max-width:1050px;text-wrap:balance}
+h2{font-size:46px;line-height:1.12;font-weight:800;letter-spacing:-.018em;max-width:1090px;text-wrap:balance}
+.lede{font-size:25px;line-height:1.42;color:var(--text);max-width:1010px;font-weight:400;text-wrap:pretty}
+.muted{color:var(--muted)}
+.dim{color:var(--muted-dim)}
+.amber{color:var(--amber)}
+.teal{color:var(--teal)}
+.red{color:var(--red)}
+.mono{font-family:var(--mono)}
+strong{font-weight:700}
+sup{font-size:.62em}
+
+.hero-num{font-family:var(--mono);font-weight:700;letter-spacing:-.02em}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+.grid2-60{display:grid;grid-template-columns:1.3fr 1fr;gap:36px;align-items:center}
+
+.card{background:var(--ink-1);border:1px solid var(--line-soft);border-radius:14px;padding:22px 24px}
+.card .k{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-dim);margin-bottom:10px}
+.card .v{font-size:18px;line-height:1.4;color:var(--text)}
+
+ul.clean{list-style:none}
+ul.clean li{position:relative;padding-left:26px;margin-bottom:16px;font-size:21px;line-height:1.4;max-width:1000px;text-wrap:pretty}
+ul.clean li::before{content:"";position:absolute;left:0;top:11px;width:9px;height:9px;background:var(--teal);
+  border-radius:2px;transform:rotate(45deg)}
+ul.clean li.neg::before{background:var(--red)}
+ul.clean li b{font-weight:700}
+
+table.lead{width:100%;border-collapse:collapse;font-size:19px;margin-top:6px}
+table.lead th{text-align:right;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted-dim);font-weight:500;padding:0 18px 14px;border-bottom:1px solid var(--line)}
+table.lead th:first-child{text-align:left}
+table.lead td{padding:12px 18px;border-bottom:1px solid var(--line-soft);text-align:right;font-family:var(--mono)}
+table.lead td:first-child{text-align:left;font-family:var(--sans);font-weight:600}
+table.lead tr.top td{color:var(--amber)}
+table.lead tr.top td:first-child{color:var(--amber)}
+
+.pipe{display:grid;grid-template-columns:1fr 30px 1fr 30px 1fr;align-items:stretch;gap:0;margin-top:8px}
+.pbox{background:var(--ink-1);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.pbox .pn{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--teal);margin-bottom:8px}
+.pbox .ph{font-size:18px;font-weight:700;margin-bottom:9px}
+.pbox .pd{font-size:15px;line-height:1.45;color:var(--muted);text-wrap:pretty}
+.parrow{display:flex;align-items:center;justify-content:center;color:var(--muted-dim);font-size:22px}
+.pbanner{font-family:var(--mono);font-size:13.5px;color:var(--muted);margin-bottom:14px;letter-spacing:.03em;line-height:1.5;text-wrap:pretty}
+.pbanner b{color:var(--text)}
+
+.splitbar{height:28px;border-radius:7px;overflow:hidden;display:flex;border:1px solid var(--line);margin-top:6px}
+.splitbar .dev{background:var(--teal);opacity:.85}
+.splitbar .blind{background:var(--amber);opacity:.9}
+
+.readout{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(20,35,43,.10)}
+.readout img{max-width:100%;max-height:452px;display:block;border-radius:4px}
+
+.chartwrap{background:var(--ink-1);border:1px solid var(--line-soft);border-radius:14px;padding:18px 20px 10px}
+.chartwrap.bare{background:none;border:none;padding:0}
+svg .ax{stroke:#AEB9C0}
+svg .axlabel{fill:var(--muted);font-family:var(--mono);font-size:13px}
+svg .gridln{stroke:var(--line-soft);stroke-dasharray:3 4}
+svg .ptxt{fill:var(--text);font-family:var(--mono);font-size:14px;font-weight:700}
+svg .stxt{fill:var(--muted);font-family:var(--mono);font-size:12px}
+
+.diagcap{font-family:var(--mono);font-size:11.5px;color:var(--muted-dim);text-align:center;margin-top:4px}
+
+/* method pipeline diagram (slide 6) */
+.plbox{fill:var(--ink-1);stroke:var(--line);stroke-width:1.2}
+.plbox.dev{stroke:var(--teal);fill:rgba(11,114,133,.06)}
+.plbox.test{stroke:var(--amber);fill:rgba(180,83,9,.06)}
+.plbox.end{stroke:var(--amber);stroke-width:1.6;fill:rgba(180,83,9,.09)}
+.pl-chip{fill:#fff;stroke:var(--line);stroke-width:1}
+.pl-h{font-family:var(--mono);font-size:11px;letter-spacing:.12em;fill:var(--teal)}
+.pl-h.am{fill:var(--amber)}
+.pl-t{font-family:var(--sans);font-size:15px;font-weight:700;fill:var(--text)}
+.pl-s{font-family:var(--mono);font-size:11.5px;fill:var(--muted)}
+.pl-chiptxt{font-family:var(--mono);font-size:13px;font-weight:700;fill:var(--text)}
+.pl-lab{font-family:var(--mono);font-size:11px;fill:var(--muted-dim)}
+.pl-lab.te{fill:var(--teal)}
+.pl-lab.am{fill:var(--amber)}
+.pl-edge{stroke:var(--muted-dim);stroke-width:1.6;fill:none}
+.pl-edge.te{stroke:var(--teal)}
+.pl-edge.am{stroke:var(--amber);stroke-dasharray:5 4}
+
+/* background slide: what is pore pressure (slide 2) */
+.geo-earth{stroke:var(--line);stroke-width:1}
+.geo-l1{fill:rgba(180,83,9,.05)}
+.geo-l2{fill:rgba(180,83,9,.10)}
+.geo-l3{fill:rgba(180,83,9,.16)}
+.geo-well{stroke:#16232B;stroke-width:2;fill:none}
+.geo-zoom{fill:rgba(11,114,133,.16);stroke:var(--teal);stroke-width:1.5}
+.geo-grain{fill:#9AA7AE}
+.geo-cone{stroke:var(--teal);stroke-width:1;stroke-dasharray:3 3;fill:none}
+.geo-frac{fill:rgba(220,38,38,.08)}
+.geo-safe{fill:rgba(11,114,133,.12)}
+.geo-kick{fill:rgba(220,38,38,.08)}
+.geo-bar{fill:none;stroke:var(--line);stroke-width:1.2}
+.geo-lf{stroke:var(--red);stroke-width:2}
+.geo-lp{stroke:var(--teal);stroke-width:2}
+.geo-lm{stroke:var(--amber);stroke-width:2.5}
+.geo-t{font-family:var(--mono);font-size:12px;fill:var(--muted)}
+.geo-t.b{font-weight:700;fill:var(--text)}
+.geo-t.te{fill:var(--teal)}
+.geo-t.am{fill:var(--amber)}
+.geo-t.rd{fill:var(--red)}
+.geo-t.s{font-size:11px;fill:var(--muted-dim)}
+
+.callout{background:rgba(180,83,9,.07);border:1px solid rgba(180,83,9,.30);border-radius:10px;
+  padding:13px 17px;font-size:17px;line-height:1.4;color:var(--text);text-wrap:pretty}
+.callout.teal{background:rgba(11,114,133,.07);border-color:rgba(11,114,133,.32)}
+.callout.red{background:rgba(220,38,38,.07);border-color:rgba(220,38,38,.30)}
+
+.note{font-size:14px;color:var(--muted);margin-top:14px;line-height:1.45;text-wrap:pretty}
+
+.refs{font-size:15px;line-height:1.5;color:var(--muted);text-wrap:pretty}
+.refs b{color:var(--text);font-weight:600}
+
+.titlewrap{display:flex;flex-direction:column;height:100%;justify-content:center}
+.authors{margin-top:32px;font-size:18px;line-height:1.7}
+.authors .me{color:var(--amber);font-weight:700}
+.affil{font-family:var(--mono);font-size:13px;color:var(--muted);margin-top:14px;line-height:1.7}
+.repo{font-family:var(--mono);font-size:14px;color:var(--teal);margin-top:28px}
+
+.hint{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);font-family:var(--mono);font-size:12px;
+  color:var(--muted);background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:20px;
+  padding:8px 18px;letter-spacing:.06em;z-index:50;transition:opacity .6s ease;box-shadow:0 2px 10px rgba(20,35,43,.08)}
+.counter{position:fixed;right:18px;bottom:18px;font-family:var(--mono);font-size:12px;color:var(--muted-dim);z-index:50}
+
+[data-frag]{opacity:0}
+body.print-mode [data-frag]{opacity:1!important;transform:none!important}
+
+@media print{
+  @page{size:landscape;margin:0}
+  body{overflow:visible}
+  .hint,.counter{display:none!important}
+}
+body.print-mode{overflow:auto}
+body.print-mode #viewport{position:static;display:block;height:auto}
+body.print-mode .stage{transform:none!important;width:1280px;height:auto}
+body.print-mode .slide{position:relative;inset:auto;display:block;width:1280px;height:720px;
+  page-break-after:always;border-bottom:1px solid var(--line)}
+body.print-mode .hint,body.print-mode .counter{display:none}
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div class="stage" id="stage">
+
+    <!-- 1 TITLE -->
+    <section class="slide" data-depth-skip>
+      <div class="rail"><div class="rail-head">TVD&nbsp;m</div></div>
+      <div class="titlewrap">
+        <div class="eyebrow">IJCNN 2026 · IEEE WCCI · Maastricht, NL · 21–26 Jun</div>
+        <h1>Simple Averaging vs.<br>Learned Stacking<br>in K-Fold Ensembles</h1>
+        <div class="lede" style="margin-top:18px">Evidence from pore pressure prediction</div>
+        <div class="mono teal" style="font-size:14px;margin-top:14px;letter-spacing:.04em">Session: AI for Energy and Resource Analytics</div>
+        <div class="authors">
+          <span class="me">Pranav Patel</span>, Muhammad Raiees Amjad, Rohan Benjamin Varghese, Tehmina Amjad
+        </div>
+        <div class="affil">Khoury College, Northeastern University &nbsp;·&nbsp; Bahria University, Islamabad</div>
+        <div class="repo">github.com/pranavpatel08/KFold-GeoScience</div>
+      </div>
+    </section>
+
+    <!-- 2 BACKGROUND · WHAT IS PORE PRESSURE -->
+    <section class="slide" id="slide-bg">
+      <div class="rail"></div>
+      <div class="eyebrow teal">Background</div>
+      <h2>What is pore pressure?</h2>
+      <div class="lede" style="margin-top:14px;max-width:1020px">The pressure of fluid trapped in the rock's pore spaces. While drilling, the mud must be heavy enough to hold that fluid back, but light enough not to crack the rock.</div>
+      <div class="chartwrap bare" style="margin-top:16px">
+        <svg viewBox="0 0 1040 360" width="100%" aria-label="Subsurface schematic and the mud-weight window">
+          <defs>
+            <marker id="upar" markerWidth="10" markerHeight="10" refX="3" refY="5" orient="auto"><path d="M0,6 L3,0 L6,6 Z" fill="#7C8A92"/></marker>
+          </defs>
+
+          <!-- left: subsurface schematic (always visible) -->
+          <g>
+            <!-- depth arrow -->
+            <line x1="24" y1="50" x2="24" y2="330" stroke="#AEB9C0" stroke-width="1.4" marker-end="url(#upar)"/>
+            <text class="geo-t s" x="16" y="190" text-anchor="middle" transform="rotate(-90 16 190)">depth</text>
+            <!-- rock layers -->
+            <rect class="geo-earth geo-l1" x="40" y="46"  width="300" height="90"/>
+            <rect class="geo-earth geo-l2" x="40" y="136" width="300" height="90"/>
+            <rect class="geo-earth geo-l3" x="40" y="226" width="300" height="108"/>
+            <!-- rig + wellbore -->
+            <polygon points="86,46 110,16 134,46" fill="none" stroke="#16232B" stroke-width="2"/>
+            <line x1="110" y1="16" x2="110" y2="46" stroke="#16232B" stroke-width="1.4"/>
+            <text class="geo-t s" x="150" y="30">drilling rig</text>
+            <path class="geo-well" d="M104,46 V300"/>
+            <path class="geo-well" d="M116,46 V300"/>
+            <path class="geo-well" d="M104,300 H116"/>
+            <text class="geo-t s" x="128" y="120">wellbore</text>
+            <text class="geo-t s" x="300" y="180" text-anchor="end">rock layers</text>
+          </g>
+
+          <!-- beat 1: pore-space zoom = pore pressure -->
+          <g data-frag="pore">
+            <path class="geo-cone" d="M118,262 L360,182"/>
+            <path class="geo-cone" d="M118,292 L372,300"/>
+            <circle class="geo-zoom" cx="436" cy="240" r="74"/>
+            <g class="geo-grain">
+              <circle cx="414" cy="216" r="15"/><circle cx="458" cy="214" r="15"/>
+              <circle cx="436" cy="244" r="16"/><circle cx="410" cy="266" r="14"/>
+              <circle cx="460" cy="262" r="14"/><circle cx="436" cy="206" r="12"/>
+            </g>
+            <text class="geo-t te b" x="436" y="334" text-anchor="middle">fluid in the pore spaces</text>
+            <text class="geo-t te"   x="436" y="350" text-anchor="middle">= pore pressure</text>
+          </g>
+
+          <!-- beat 2: the mud-weight window -->
+          <g data-frag="window">
+            <text class="geo-t b" x="735" y="28" text-anchor="middle">THE MUD-WEIGHT WINDOW</text>
+            <!-- pressure axis -->
+            <line x1="672" y1="330" x2="672" y2="44" stroke="#AEB9C0" stroke-width="1.4" marker-end="url(#upar)"/>
+            <text class="geo-t s" x="662" y="190" text-anchor="middle" transform="rotate(-90 662 190)">pressure</text>
+            <!-- bar + zones -->
+            <rect class="geo-frac" x="692" y="44"  width="86" height="58"/>
+            <rect class="geo-safe" x="692" y="102" width="86" height="150"/>
+            <rect class="geo-kick" x="692" y="252" width="86" height="78"/>
+            <rect class="geo-bar"  x="692" y="44"  width="86" height="286"/>
+            <text class="geo-t te" x="735" y="160" text-anchor="middle">safe window</text>
+            <!-- threshold + mud lines -->
+            <line class="geo-lf" x1="692" y1="102" x2="778" y2="102"/>
+            <line class="geo-lp" x1="692" y1="252" x2="778" y2="252"/>
+            <line class="geo-lm" x1="684" y1="177" x2="786" y2="177"/>
+            <circle cx="688" cy="177" r="4" fill="#B45309"/>
+            <!-- labels -->
+            <text class="geo-t rd b" x="792" y="99">FRACTURE PRESSURE</text>
+            <text class="geo-t s"    x="792" y="115">rock fractures above this</text>
+            <text class="geo-t am b" x="792" y="174">MUD WEIGHT</text>
+            <text class="geo-t s"    x="792" y="190">must stay inside the window</text>
+            <text class="geo-t te b" x="792" y="255">PORE PRESSURE</text>
+            <text class="geo-t s"    x="792" y="271">fluid kicks in below this</text>
+          </g>
+        </svg>
+      </div>
+    </section>
+
+    <!-- 3 THE STAKES · BLOWOUT -->
+    <section class="slide">
+      <div class="rail"></div>
+      <div class="eyebrow red">The stakes</div>
+      <h2>Get the pressure wrong, and the well can blow out.</h2>
+      <div class="grid2-60" style="margin-top:18px">
+        <div>
+          <div class="readout"><img src="assets/deepwater_horizon_uscg.jpg" alt="The Deepwater Horizon offshore drilling rig on fire in the Gulf of Mexico, 2010"></div>
+          <div class="diagcap">Deepwater Horizon, 2010 &#183; Photo: U.S. Coast Guard (public domain)</div>
+        </div>
+        <div>
+          <ul class="clean">
+            <li data-frag>A <b>blowout</b> is a loss of well control: the catastrophe the mud-weight window exists to prevent</li>
+            <li data-frag>Precise pore-pressure prediction is how you stay inside that window, before and during drilling</li>
+          </ul>
+          <div class="callout red" style="margin-top:18px" data-frag>Blowouts are rare but catastrophic. Deepwater Horizon is the most visible reminder of why careful pre-drill pressure prediction matters.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 INTRODUCTION -->
+    <section class="slide" id="slide-intro">
+      <div class="rail"></div>
+      <div class="eyebrow">Introduction</div>
+      <h2>Pore pressure prediction is critical for drilling safety.</h2>
+      <div class="grid2-60" style="margin-top:18px">
+        <div class="chartwrap bare">
+          <svg viewBox="0 0 720 460" width="100%">
+            <polygon id="op-zone" points="196,250 470,412 300,412" fill="rgba(11,114,133,.10)"/>
+            <line class="ax" x1="66" y1="34" x2="66" y2="412"/>
+            <line class="ax" x1="66" y1="412" x2="694" y2="412"/>
+            <text class="stxt" x="694" y="434" text-anchor="end">pressure &#8594;</text>
+            <text class="stxt" x="32" y="232" text-anchor="middle" transform="rotate(-90 32 232)">depth &#8595;</text>
+            <line x1="66" y1="250" x2="548" y2="250" stroke="var(--muted-dim)" stroke-width="1" stroke-dasharray="3 4"/>
+            <text class="stxt" x="210" y="242">top of overpressure</text>
+            <line id="op-ob" x1="66" y1="34" x2="600" y2="412" stroke="var(--amber)" stroke-width="2.5"/>
+            <line id="op-hy" x1="66" y1="34" x2="300" y2="412" stroke="var(--muted)" stroke-width="2" stroke-dasharray="6 5"/>
+            <polyline id="op-pp" points="66,34 196,250 470,412" fill="none" stroke="var(--teal)" stroke-width="3.5"/>
+            <text class="ptxt" x="312" y="196" style="fill:var(--amber)">overburden</text>
+            <text class="stxt" x="168" y="358" style="fill:var(--muted)">hydrostatic</text>
+            <text class="ptxt" x="392" y="358" style="fill:var(--teal)">pore pressure</text>
+            <text class="stxt" x="312" y="350" text-anchor="middle" style="fill:var(--teal);font-weight:700">overpressure</text>
+          </svg>
+          <div class="diagcap">Overpressure deviates from hydrostatic, after Bowers (1995) [4]</div>
+        </div>
+        <div>
+          <ul class="clean">
+            <li data-frag>Abnormal pressure drives about <b>20%</b> of non-productive drilling time [1]</li>
+            <li data-frag>Nearly half the world's oil fields, <b>47.7%</b>, are overpressured [2]</li>
+            <li data-frag>Physics models (Eaton, Bowers) assume tidy compaction and miss complex geology [3, 4]</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 PROBLEM -->
+    <section class="slide" id="slide-problem">
+      <div class="rail"></div>
+      <div class="eyebrow">Problem statement</div>
+      <h2>ML reports R<sup>2</sup> &gt; 0.95. Most of it is leakage.</h2>
+      <div class="grid2-60" style="margin-top:18px">
+        <div class="chartwrap bare">
+          <svg viewBox="0 0 720 360" width="100%">
+            <rect x="470" y="12" width="15" height="15" rx="2" fill="var(--teal)"/>
+            <text class="stxt" x="492" y="24">train</text>
+            <rect x="560" y="12" width="15" height="15" rx="2" fill="var(--amber)"/>
+            <text class="stxt" x="582" y="24">test</text>
+
+            <text class="stxt" x="16" y="78">RANDOM SPLIT</text>
+            <g>
+              <rect class="leakcell" x="190" y="92" width="32" height="40" rx="2" fill="var(--teal)"/>
+              <rect class="leakcell" x="228" y="92" width="32" height="40" rx="2" fill="var(--amber)"/>
+              <rect class="leakcell" x="266" y="92" width="32" height="40" rx="2" fill="var(--teal)"/>
+              <rect class="leakcell" x="304" y="92" width="32" height="40" rx="2" fill="var(--teal)"/>
+              <rect class="leakcell" x="342" y="92" width="32" height="40" rx="2" fill="var(--amber)"/>
+              <rect class="leakcell" x="380" y="92" width="32" height="40" rx="2" fill="var(--teal)"/>
+              <rect class="leakcell" x="418" y="92" width="32" height="40" rx="2" fill="var(--amber)"/>
+              <rect class="leakcell" x="456" y="92" width="32" height="40" rx="2" fill="var(--teal)"/>
+              <rect class="leakcell" x="494" y="92" width="32" height="40" rx="2" fill="var(--amber)"/>
+              <rect class="leakcell" x="532" y="92" width="32" height="40" rx="2" fill="var(--teal)"/>
+              <rect class="leakcell" x="570" y="92" width="32" height="40" rx="2" fill="var(--teal)"/>
+              <rect class="leakcell" x="608" y="92" width="32" height="40" rx="2" fill="var(--amber)"/>
+            </g>
+            <text x="190" y="160" style="fill:var(--red);font-family:var(--mono);font-size:13px;font-weight:700">one well, samples in train AND test</text>
+
+            <text class="stxt" x="16" y="244">WELL-BASED (OURS)</text>
+            <g>
+              <rect class="leakcell" x="190" y="258" width="32" height="40" rx="2" fill="var(--teal)"/>
+              <rect class="leakcell" x="228" y="258" width="32" height="40" rx="2" fill="var(--teal)"/>
+              <rect class="leakcell" x="266" y="258" width="32" height="40" rx="2" fill="var(--teal)"/>
+              <rect class="leakcell" x="326" y="258" width="32" height="40" rx="2" fill="var(--teal)"/>
+              <rect class="leakcell" x="364" y="258" width="32" height="40" rx="2" fill="var(--teal)"/>
+              <rect class="leakcell" x="402" y="258" width="32" height="40" rx="2" fill="var(--teal)"/>
+              <rect class="leakcell" x="462" y="258" width="32" height="40" rx="2" fill="var(--teal)"/>
+              <rect class="leakcell" x="500" y="258" width="32" height="40" rx="2" fill="var(--teal)"/>
+              <rect class="leakcell" x="560" y="258" width="32" height="40" rx="2" fill="var(--amber)"/>
+              <rect class="leakcell" x="598" y="258" width="32" height="40" rx="2" fill="var(--amber)"/>
+              <rect class="leakcell" x="636" y="258" width="32" height="40" rx="2" fill="var(--amber)"/>
+            </g>
+            <text x="190" y="326" style="fill:var(--teal);font-family:var(--mono);font-size:13px;font-weight:700">whole wells held out, no overlap</text>
+          </svg>
+        </div>
+        <div>
+          <ul class="clean">
+            <li data-frag><b>Data leakage:</b> 78% of studies split randomly, so the same well lands in train and test [5]</li>
+            <li data-frag><b>Cross-well failure:</b> tested honestly on blind wells, base models score negative R<sup>2</sup> [6]</li>
+            <li data-frag><b>Open question:</b> which models to include, and how to combine them?</li>
+          </ul>
+          <div class="callout teal" style="margin-top:18px" data-frag><b>Our fix:</b> rank models out-of-fold, hold out whole wells, and never touch the test set during selection.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 DATASET -->
+    <section class="slide">
+      <div class="rail"></div>
+      <div class="eyebrow">Methodology · Data</div>
+      <h2>21 wells from Pakistan's Potwar Basin, split by whole wells.</h2>
+      <div class="grid2-60" style="margin-top:22px">
+        <table class="lead">
+          <thead><tr><th>Split</th><th>Wells</th><th>Samples</th><th>%</th></tr></thead>
+          <tbody>
+            <tr><td>Development</td><td>17</td><td>186,070</td><td>68.7</td></tr>
+            <tr><td>Test (blind)</td><td>4</td><td>84,904</td><td>31.3</td></tr>
+            <tr class="top"><td>Total</td><td>21</td><td>270,974</td><td>100</td></tr>
+          </tbody>
+        </table>
+        <div>
+          <div class="splitbar" data-frag><div class="dev" style="width:68.7%"></div><div class="blind" style="width:31.3%"></div></div>
+          <ul class="clean" style="margin-top:22px">
+            <li data-frag><b>Well logs</b> are sensor readings at each depth; every depth is one sample, so 21 wells give 270,974 points</li>
+            <li data-frag>The 4 test wells are <b>unseen</b> in both training and model selection</li>
+            <li data-frag>Pressure regimes are balanced across the splits, so it is a fair test</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 FEATURES & MODELS -->
+    <section class="slide">
+      <div class="rail"></div>
+      <div class="eyebrow">Methodology · Features &amp; Models</div>
+      <h2>13 features; five architecturally diverse models.</h2>
+      <div class="grid2-60" style="margin-top:24px">
+        <div class="card" data-frag>
+          <div class="k">13 features</div>
+          <div class="v" style="font-size:16px;line-height:1.6">
+            <b>9 raw logs:</b> TVD, DT, DT_NCT, GR, SPHI, HP, OB, RHOB, RES_DEEP<br><br>
+            <b>4 engineered:</b> Eaton ratio, two pressure gradients, normalized depth
+          </div>
+        </div>
+        <div class="card" data-frag>
+          <div class="k">Five models</div>
+          <div class="v" style="font-family:var(--mono);font-size:16px;line-height:1.9">
+            <span class="teal">Neural nets:</span> CNN, DFNN, RNN<br>
+            <span class="amber">Trees:</span> Random Forest, XGBoost
+          </div>
+          <div class="note">Trees and neural nets fail differently. That diversity is the asset. Hyperparameters follow [6].</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 METHOD -->
+    <section class="slide">
+      <div class="rail"></div>
+      <div class="eyebrow teal">Methodology · K-Fold Stacking</div>
+      <h2>Rank models out-of-fold, then combine.</h2>
+      <div class="pbanner" style="margin-top:18px">K-Fold stacking [7]: 5-fold <b>GroupKFold</b> grouped by <b>well</b>, so no well appears in both a train and a validation fold.</div>
+      <div class="chartwrap bare" style="margin-top:14px">
+        <svg viewBox="0 0 1040 336" width="100%" aria-label="K-Fold stacking pipeline">
+          <defs>
+            <marker id="ah"   markerWidth="9" markerHeight="9" refX="5.5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#7C8A92"/></marker>
+            <marker id="ahte" markerWidth="9" markerHeight="9" refX="5.5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#0B7285"/></marker>
+            <marker id="aham" markerWidth="9" markerHeight="9" refX="5.5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#B45309"/></marker>
+          </defs>
+
+          <!-- top row: raw -> preprocess -> well-based split (always visible) -->
+          <g>
+            <rect class="plbox" x="8"   y="10" width="176" height="78" rx="12"/>
+            <text class="pl-h"  x="96"  y="34" text-anchor="middle">RAW DATA</text>
+            <text class="pl-t"  x="96"  y="57" text-anchor="middle">21 wells</text>
+            <text class="pl-s"  x="96"  y="75" text-anchor="middle">270,974 samples</text>
+
+            <rect class="plbox" x="236" y="10" width="186" height="78" rx="12"/>
+            <text class="pl-h"  x="329" y="34" text-anchor="middle">PREPROCESSING</text>
+            <text class="pl-t"  x="329" y="57" text-anchor="middle">13 features</text>
+            <text class="pl-s"  x="329" y="75" text-anchor="middle">9 raw + 4 engineered</text>
+
+            <rect class="plbox test" x="486" y="10" width="180" height="37" rx="9"/>
+            <text class="pl-h am"    x="576" y="27" text-anchor="middle">TEST SET &#183; BLIND</text>
+            <text class="pl-s"       x="576" y="41" text-anchor="middle">4 wells &#183; 31.3%</text>
+            <rect class="plbox dev"  x="486" y="51" width="180" height="37" rx="9"/>
+            <text class="pl-h"       x="576" y="68" text-anchor="middle">DEV SET</text>
+            <text class="pl-s"       x="576" y="82" text-anchor="middle">17 wells &#183; 68.7%</text>
+
+            <path class="pl-edge" d="M184,49 H230" marker-end="url(#ah)"/>
+            <path class="pl-edge" d="M422,49 H464 V28 H480" marker-end="url(#ah)"/>
+            <path class="pl-edge" d="M464,49 V69 H480" marker-end="url(#ah)"/>
+          </g>
+
+          <!-- beat 1: dev -> 5-fold GroupKFold -->
+          <g data-frag="cv">
+            <path class="pl-edge te" d="M540,88 V150 H157 V200" marker-end="url(#ahte)"/>
+            <text class="pl-lab te" x="350" y="144" text-anchor="middle">development set</text>
+
+            <rect class="plbox" x="8" y="200" width="298" height="128" rx="12"/>
+            <text class="pl-h" x="157" y="224" text-anchor="middle">5-FOLD GROUPKFOLD &#183; BY WELL</text>
+            <rect class="pl-chip" x="19"  y="238" width="44" height="28" rx="6"/><text class="pl-chiptxt" x="41"  y="257" text-anchor="middle">F1</text>
+            <rect class="pl-chip" x="77"  y="238" width="44" height="28" rx="6"/><text class="pl-chiptxt" x="99"  y="257" text-anchor="middle">F2</text>
+            <rect class="pl-chip" x="135" y="238" width="44" height="28" rx="6"/><text class="pl-chiptxt" x="157" y="257" text-anchor="middle">F3</text>
+            <rect class="pl-chip" x="193" y="238" width="44" height="28" rx="6"/><text class="pl-chiptxt" x="215" y="257" text-anchor="middle">F4</text>
+            <rect class="pl-chip" x="251" y="238" width="44" height="28" rx="6"/><text class="pl-chiptxt" x="273" y="257" text-anchor="middle">F5</text>
+            <text class="pl-s" x="157" y="292" text-anchor="middle">5 models per fold</text>
+            <text class="pl-s" x="157" y="312" text-anchor="middle" style="fill:var(--text)">CNN &#183; DFNN &#183; RNN &#183; RF &#183; XGBoost</text>
+          </g>
+
+          <!-- beat 2: rank out-of-fold, retrain on full dev -->
+          <g data-frag="rank">
+            <path class="pl-edge" d="M306,264 H330" marker-end="url(#ah)"/>
+            <rect class="plbox" x="330" y="224" width="180" height="80" rx="12"/>
+            <text class="pl-h" x="420" y="248" text-anchor="middle">OOF RANKINGS</text>
+            <text class="pl-t" x="420" y="271" text-anchor="middle">Rank by OOF R&#178;</text>
+            <text class="pl-s" x="420" y="290" text-anchor="middle">average vs Ridge</text>
+
+            <path class="pl-edge" d="M510,264 H538" marker-end="url(#ah)"/>
+            <rect class="plbox" x="538" y="224" width="180" height="80" rx="12"/>
+            <text class="pl-h" x="628" y="248" text-anchor="middle">RETRAIN</text>
+            <text class="pl-t" x="628" y="271" text-anchor="middle">Full dev set</text>
+            <text class="pl-s" x="628" y="290" text-anchor="middle">all 5 models</text>
+          </g>
+
+          <!-- beat 3: blind test, where trained models meet the held-out wells -->
+          <g data-frag="test">
+            <path class="pl-edge" d="M718,264 H746" marker-end="url(#ah)"/>
+            <path class="pl-edge am" d="M666,28 H836 V220" marker-end="url(#aham)"/>
+            <text class="pl-lab am" x="824" y="128" text-anchor="end">held out &#183; untouched</text>
+            <rect class="plbox end" x="746" y="224" width="180" height="80" rx="12"/>
+            <text class="pl-h am" x="836" y="248" text-anchor="middle">BLIND TEST</text>
+            <text class="pl-t" x="836" y="271" text-anchor="middle">4 wells &#183; once</text>
+            <text class="pl-s" x="836" y="290" text-anchor="middle">final evaluation</text>
+          </g>
+        </svg>
+      </div>
+      <div class="note" data-frag>Model selection uses out-of-fold metrics only. The blind wells are evaluated once, at the very end.</div>
+    </section>
+
+    <!-- 7 OOF RESULTS -->
+    <section class="slide" id="slide-oof">
+      <div class="rail"></div>
+      <div class="eyebrow">Results · Cross-Validation</div>
+      <h2>Honest cross-well scores are compressed and low.</h2>
+      <div class="grid2-60" style="margin-top:14px">
+        <div class="chartwrap bare">
+          <svg viewBox="0 0 900 350" width="100%">
+            <line class="ax" x1="168" y1="20" x2="168" y2="346"/>
+            <rect class="oofbar" x="168" y="28"  width="518" height="46" rx="3" style="fill:var(--amber)"/>
+            <text class="ptxt" x="156" y="57" text-anchor="end" style="font-family:var(--sans);fill:var(--amber)">XGBoost</text>
+            <text class="ptxt" x="696" y="57" style="fill:var(--amber)">0.8537</text>
+            <rect class="oofbar" x="168" y="96"  width="487" height="46" rx="3" style="fill:var(--teal)"/>
+            <text class="ptxt" x="156" y="125" text-anchor="end" style="font-family:var(--sans)">DFNN</text>
+            <text class="ptxt" x="665" y="125">0.8475</text>
+            <rect class="oofbar" x="168" y="164" width="450" height="46" rx="3" style="fill:var(--teal)"/>
+            <text class="ptxt" x="156" y="193" text-anchor="end" style="font-family:var(--sans)">CNN</text>
+            <text class="ptxt" x="628" y="193">0.8400</text>
+            <rect class="oofbar" x="168" y="232" width="202" height="46" rx="3" style="fill:var(--teal)"/>
+            <text class="ptxt" x="156" y="261" text-anchor="end" style="font-family:var(--sans)">RNN</text>
+            <text class="ptxt" x="380" y="261">0.7905</text>
+            <rect class="oofbar" x="168" y="300" width="180" height="46" rx="3" style="fill:var(--teal)"/>
+            <text class="ptxt" x="156" y="329" text-anchor="end" style="font-family:var(--sans)">RF</text>
+            <text class="ptxt" x="358" y="329">0.7859</text>
+          </svg>
+          <div class="diagcap">OOF R&#178; &#183; axis zoomed to 0.75&#8211;0.87</div>
+        </div>
+        <div>
+          <ul class="clean">
+            <li data-frag>All five models land between <b>0.79 and 0.85</b>, compressed and modest</li>
+            <li data-frag>These are realistic cross-well scores, with no well memorization</li>
+            <li data-frag>Models are ranked by <b>out-of-fold R<sup>2</sup></b>, never by the test set</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 TOP-K -->
+    <section class="slide" id="slide-topk">
+      <div class="rail"></div>
+      <div class="eyebrow amber">Results · Top-K Ablation</div>
+      <h2>Performance improves monotonically through K = 5.</h2>
+      <div class="grid2-60" style="margin-top:12px">
+        <div class="chartwrap bare">
+          <svg viewBox="0 0 900 420" width="100%">
+            <line class="gridln" x1="70" y1="90" x2="860" y2="90"/>
+            <line class="gridln" x1="70" y1="167" x2="860" y2="167"/>
+            <line class="gridln" x1="70" y1="244" x2="860" y2="244"/>
+            <line class="gridln" x1="70" y1="321" x2="860" y2="321"/>
+            <text class="axlabel" x="60" y="94" text-anchor="end">0.89</text>
+            <text class="axlabel" x="60" y="171" text-anchor="end">0.87</text>
+            <text class="axlabel" x="60" y="248" text-anchor="end">0.85</text>
+            <text class="axlabel" x="60" y="325" text-anchor="end">0.83</text>
+            <line class="ax" x1="70" y1="30" x2="70" y2="360"/>
+            <line class="ax" x1="70" y1="360" x2="860" y2="360"/>
+            <polyline id="topk-line" fill="none" style="stroke:var(--teal)" stroke-width="3"
+              points="70,320 267,96 465,62 662,57 860,48"/>
+            <g>
+              <circle class="topk-pt" cx="70" cy="320" r="6" style="fill:var(--teal)"/><circle class="topk-pt" cx="267" cy="96" r="6" style="fill:var(--teal)"/>
+              <circle class="topk-pt" cx="465" cy="62" r="6" style="fill:var(--teal)"/><circle class="topk-pt" cx="662" cy="57" r="6" style="fill:var(--teal)"/>
+              <circle class="topk-pt" cx="860" cy="48" r="7" style="fill:var(--amber)"/>
+            </g>
+            <text class="ptxt" x="70"  y="345" text-anchor="middle" style="fill:var(--muted)">0.8202</text>
+            <text class="ptxt" x="860" y="36"  text-anchor="middle" style="fill:var(--amber)">0.8905</text>
+            <text class="stxt" x="70"  y="385" text-anchor="middle">K1 XGB</text>
+            <text class="stxt" x="267" y="385" text-anchor="middle">+DFNN</text>
+            <text class="stxt" x="465" y="385" text-anchor="middle">+CNN</text>
+            <text class="stxt" x="662" y="385" text-anchor="middle">+RNN</text>
+            <text class="stxt" x="860" y="385" text-anchor="middle">+RF</text>
+            <text id="topk-gain" x="175" y="250" text-anchor="middle" style="fill:var(--amber);font-family:var(--mono);font-size:14px;font-weight:700">+5.77 pp</text>
+          </svg>
+        </div>
+        <div>
+          <ul class="clean">
+            <li data-frag>The biggest jump, <b>+5.77 pp</b>, comes from the first two models (XGBoost + DFNN)</li>
+            <li data-frag>The full ensemble reaches <b>R<sup>2</sup> = 0.8905</b>, +7.03 pp over the best single model</li>
+            <li data-frag>Gains diminish after K = 2, but they never reverse</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 AVG vs RIDGE -->
+    <section class="slide" id="slide-avgridge">
+      <div class="rail"></div>
+      <div class="eyebrow amber">Results · Averaging vs. Stacking</div>
+      <h2>Simple averaging beats Ridge stacking at every K.</h2>
+      <div class="grid2-60" style="margin-top:12px">
+        <div class="chartwrap bare">
+          <svg viewBox="0 0 900 400" width="100%">
+            <line class="ax" x1="80" y1="20" x2="80" y2="330"/>
+            <line class="ax" x1="80" y1="330" x2="850" y2="330"/>
+            <polyline id="avg-line" fill="none" style="stroke:var(--teal)" stroke-width="3" points="80,175 333,84 587,70 840,45"/>
+            <g style="fill:var(--teal)"><circle cx="80" cy="175" r="6"/><circle cx="333" cy="84" r="6"/><circle cx="587" cy="70" r="6"/><circle cx="840" cy="45" r="6"/></g>
+            <polyline id="ridge-line" fill="none" style="stroke:var(--red)" stroke-width="3" stroke-dasharray="6 5" points="80,218 333,134 587,154 840,289"/>
+            <g style="fill:var(--red)"><circle cx="80" cy="218" r="6"/><circle cx="333" cy="134" r="6"/><circle cx="587" cy="154" r="6"/><circle cx="840" cy="289" r="6"/></g>
+            <text class="stxt" x="92"  y="250" text-anchor="middle">0.41</text>
+            <text class="stxt" x="333" y="180" text-anchor="middle">0.49</text>
+            <text class="stxt" x="587" y="200" text-anchor="middle">0.81</text>
+            <text id="gap-k5" class="stxt" x="840" y="172" text-anchor="middle" style="fill:var(--amber);font-size:15px;font-weight:700">2.36 pp</text>
+            <text class="stxt" x="80"  y="358" text-anchor="middle">K=2</text>
+            <text class="stxt" x="333" y="358" text-anchor="middle">K=3</text>
+            <text class="stxt" x="587" y="358" text-anchor="middle">K=4</text>
+            <text class="stxt" x="840" y="358" text-anchor="middle">K=5</text>
+            <text class="ptxt" x="95" y="50" style="fill:var(--teal)">Simple avg</text>
+            <text class="ptxt" x="95" y="76" style="fill:var(--red)">Ridge</text>
+          </svg>
+        </div>
+        <div>
+          <ul class="clean">
+            <li data-frag>Simple averaging wins at every size, <b>K = 2, 3, 4 and 5</b></li>
+            <li data-frag>The gap widens with K, from <b>0.41</b> to <b class="amber">2.36 pp</b></li>
+            <li data-frag>At K = 5, averaging hits 0.8905 while Ridge falls to 0.8669</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 WHY -->
+    <section class="slide" id="slide-mech">
+      <div class="rail"></div>
+      <div class="eyebrow">Discussion · Why averaging wins</div>
+      <h2>Ridge discards diversity valuable under distribution shift.</h2>
+      <div class="grid2-60" style="margin-top:12px">
+        <div class="chartwrap">
+          <svg viewBox="0 0 900 300" width="100%">
+            <line class="ax" x1="450" y1="10" x2="450" y2="282"/>
+            <text class="stxt" x="450" y="298" text-anchor="middle">0</text>
+            <g style="font-family:var(--mono)">
+              <rect class="coef-bar" x="450" y="14"  width="284" height="28" style="fill:var(--amber)" rx="3"/>
+              <text class="ptxt" x="742" y="34">+0.759 XGBoost</text>
+              <rect class="coef-bar" x="450" y="64"  width="130" height="28" style="fill:var(--teal)" rx="3"/>
+              <text class="ptxt" x="588" y="84">+0.346 CNN</text>
+              <rect class="coef-bar" x="450" y="114" width="116" height="28" style="fill:var(--teal)" rx="3"/>
+              <text class="ptxt" x="574" y="134">+0.309 DFNN</text>
+              <rect class="coef-bar neg" x="418" y="164" width="32" height="28" style="fill:var(--red)" rx="3"/>
+              <text class="ptxt" x="410" y="184" text-anchor="end" style="fill:var(--red)">RNN &#8722;0.086</text>
+              <rect class="coef-bar neg" x="375" y="214" width="75" height="28" style="fill:var(--red)" rx="3"/>
+              <text class="ptxt" x="367" y="234" text-anchor="end" style="fill:var(--red)">RF &#8722;0.200</text>
+            </g>
+          </svg>
+          <div class="diagcap">Ridge coefficients at K = 5</div>
+        </div>
+        <div>
+          <ul class="clean">
+            <li data-frag>Ridge fits out-of-fold predictions that are <b>0.92&#8211;0.97 correlated</b>, so models look redundant</li>
+            <li data-frag>It piles weight on XGBoost and goes <b class="red">negative on RNN and RF</b>, dropping them</li>
+            <li class="neg" data-frag>Under distribution shift, those dropped models catch errors the others miss</li>
+            <li data-frag>Averaging keeps every model by construction, preserving the diversity</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 11 PRESSURE PROFILE -->
+    <section class="slide">
+      <div class="rail"></div>
+      <div class="eyebrow">Results · Qualitative</div>
+      <h2>Blind well PINDORI-2: the ensemble tracks the pressure profile.</h2>
+      <div class="grid2-60" style="margin-top:18px">
+        <div class="readout"><img src="assets/pressure_profile.png" alt="PINDORI-2 pressure profile: ensemble, tree models and neural networks vs actual"></div>
+        <div>
+          <ul class="clean">
+            <li data-frag>The ensemble (red) tracks the actual pressure down the full depth column</li>
+            <li data-frag>Trees and neural nets miss in <b>different places</b> along the well</li>
+            <li data-frag>That complementary diversity is exactly what averaging preserves</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12 LIMITATIONS -->
+    <section class="slide">
+      <div class="rail"></div>
+      <div class="eyebrow red">Discussion · Limitations</div>
+      <h2>What this does not yet show.</h2>
+      <ul class="clean" style="margin-top:24px">
+        <li class="neg" data-frag><b>Single basin.</b> All results are from one basin (Potwar, Pakistan); the exact numbers may not transfer, though the recipe should. Multi-basin validation is the priority.</li>
+        <li class="neg" data-frag><b>One unconstrained combiner.</b> We tested only unconstrained Ridge; a constrained combiner like non-negative least squares (NNLS) cannot discard models outright, and is the fair next baseline.</li>
+        <li class="neg" data-frag><b>Only four blind wells, no error bars yet.</b> Scores are point estimates on 4 wells; bootstrap confidence intervals are future work, so trust the trend over the exact gap.</li>
+        <li class="neg" data-frag><b>Preprocessing is load-bearing.</b> Physical-constraint filtering of the logs was needed to train the neural nets stably.</li>
+      </ul>
+    </section>
+
+    <!-- 13 CONCLUSION -->
+    <section class="slide" id="slide-concl">
+      <div class="rail"></div>
+      <div class="eyebrow teal">Conclusion</div>
+      <h2>A leakage-free recipe for cross-well prediction.</h2>
+      <ul class="clean" style="margin-top:20px">
+        <li data-frag>The 5-model simple-average ensemble reaches <b class="amber" id="concl-r2">R<sup>2</sup> = 0.8905</b> on 4 blind wells, +7.03 pp over the best single model</li>
+        <li data-frag>Simple averaging beats Ridge, and the gap widens with K from 0.41 to 2.36 pp</li>
+        <li data-frag>Under distribution shift, prefer equal weighting over a learned combination. The recipe is domain-general; pore pressure is only our testbed.</li>
+        <li data-frag><b>Next:</b> conformal uncertainty, SHAP explanations, and multi-basin validation</li>
+      </ul>
+      <div class="repo" style="margin-top:20px">github.com/pranavpatel08/KFold-GeoScience &nbsp;·&nbsp; pranavjpatel.08@gmail.com</div>
+    </section>
+
+    <!-- 14 REFERENCES -->
+    <section class="slide" data-depth-skip="end">
+      <div class="rail"></div>
+      <div class="eyebrow">References</div>
+      <div class="grid2" style="margin-top:18px">
+        <div class="refs">
+          [1] J. Zhang, "Pore pressure prediction from well logs," <b>Earth-Science Reviews</b>, 2011.<br><br>
+          [2] M. R. Amjad et al., "Precise geopressure predictions in active foreland basins," <b>J. Asian Earth Sci.</b>, 2023.<br><br>
+          [3] B. A. Eaton, "The equation for geopressure prediction from well logs," <b>SPE</b>, 1975.<br><br>
+          [4] G. L. Bowers, "Pore pressure estimation from velocity data," <b>SPE Drilling &amp; Completion</b>, 1995.
+        </div>
+        <div class="refs">
+          [5] H. Singh, Y. Seol, J.-H. Choi, "Evaluation biases in ML models for pore pressure prediction," <b>Reviews of Geophysics</b>, 2024.<br><br>
+          [6] M. R. Amjad, R. B. Varghese, T. Amjad, "Machine learning models for subsurface pressure prediction," <b>Computers</b>, 2025.<br><br>
+          [7] D. H. Wolpert, "Stacked generalization," <b>Neural Networks</b>, 1992.
+        </div>
+      </div>
+      <div class="repo" style="margin-top:26px">github.com/pranavpatel08/KFold-GeoScience</div>
+    </section>
+
+    <!-- 15 THANK YOU -->
+    <section class="slide" data-depth-skip="end">
+      <div class="rail"></div>
+      <div style="display:flex;flex-direction:column;justify-content:center;height:100%">
+        <div class="eyebrow">Thank you</div>
+        <h1>Questions</h1>
+        <div class="authors" style="margin-top:24px"><span class="me">Pranav Patel</span> · Khoury College, Northeastern University</div>
+        <div class="repo">github.com/pranavpatel08/KFold-GeoScience &nbsp;·&nbsp; pranavjpatel.08@gmail.com</div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div class="hint" id="hint">&#8594; / click advance &nbsp;·&nbsp; &#8592; back &nbsp;·&nbsp; F fullscreen &nbsp;·&nbsp; P print / PDF</div>
+<div class="counter" id="counter"></div>
+
+<script src="gsap.min.js"></script>
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var i = 0, fragIndex = 0;
+  var counter = document.getElementById('counter');
+  var hint = document.getElementById('hint');
+  var MOTION = !!window.gsap && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- depth rail (TVD 2400 -> 4000 across content slides) ---------- */
+  var mainSlides = slides.filter(function(s){return !s.hasAttribute('data-depth-skip');});
+
+  function buildRail(s){
+    var rail = s.querySelector('.rail');
+    if(!rail || rail.dataset.built) return;
+    rail.dataset.built = "1";
+    if(!rail.querySelector('.rail-head')){
+      var h=document.createElement('div');h.className='rail-head';h.textContent='TVD m';rail.appendChild(h);
+    }
+    var track=document.createElement('div');track.className='rail-track';rail.appendChild(track);
+    var fill=document.createElement('div');fill.className='rail-fill';rail.appendChild(fill);
+    var top=64, bottom=690-30, span=bottom-top;
+    for(var t=0;t<=4;t++){
+      var ty=top+span*(t/4);
+      var tick=document.createElement('div');tick.className='rail-tick';tick.style.top=ty+'px';rail.appendChild(tick);
+      var lab=document.createElement('div');lab.className='rail-depth';lab.style.top=(ty-7)+'px';
+      lab.textContent=(2400+(1600*t/4));rail.appendChild(lab);
+    }
+    var dot=document.createElement('div');dot.className='rail-dot';rail.appendChild(dot);
+    var now=document.createElement('div');now.className='rail-now';rail.appendChild(now);
+  }
+  slides.forEach(buildRail);
+
+  var lastFrac = 0;
+  function updateRail(s){
+    var rail=s.querySelector('.rail'); if(!rail) return;
+    var fill=rail.querySelector('.rail-fill');
+    var dot=rail.querySelector('.rail-dot');
+    var top=64, bottom=690-30, span=bottom-top;
+    var frac;
+    if(s.hasAttribute('data-depth-skip')){
+      frac = s.getAttribute('data-depth-skip')==='end' ? 1 : 0;
+    } else {
+      var idx=mainSlides.indexOf(s);
+      frac = mainSlides.length>1 ? idx/(mainSlides.length-1) : 0;
+    }
+    var now=rail.querySelector('.rail-now');
+    var yFrom=top+span*lastFrac, yTo=top+span*frac;
+    if(MOTION && dot){
+      dot.style.transition='none'; if(fill) fill.style.transition='none'; if(now) now.style.transition='none';
+      dot.style.top=yFrom+'px'; if(fill) fill.style.height=(yFrom-top)+'px'; if(now) now.style.top=(yFrom-7)+'px';
+      void dot.offsetHeight;
+      dot.style.transition=''; if(fill) fill.style.transition=''; if(now) now.style.transition='';
+      dot.style.top=yTo+'px'; if(fill) fill.style.height=(yTo-top)+'px'; if(now) now.style.top=(yTo-7)+'px';
+    } else {
+      if(dot) dot.style.top=yTo+'px';
+      if(fill) fill.style.height=(yTo-top)+'px';
+      if(now) now.style.top=(yTo-7)+'px';
+    }
+    var nearestK=Math.round(frac*4), nearestTickY=top+span*(nearestK/4), overlap=Math.abs(yTo-nearestTickY)<=18;
+    rail.querySelectorAll('.rail-depth').forEach(function(l,k){ l.classList.toggle('on', overlap && k===nearestK); });
+    if(now){
+      if(overlap){ now.style.display='none'; }
+      else { now.style.display=''; now.textContent=Math.round(2400+1600*frac); }
+    }
+    lastFrac=frac;
+  }
+
+  /* ---------- fragments ---------- */
+  function fragGroups(slide){
+    var els = Array.prototype.slice.call(slide.querySelectorAll('[data-frag]'));
+    var named = {}, order = [], auto = 0;
+    els.forEach(function(el){
+      var key = el.getAttribute('data-frag');
+      if(key==='' || key===null){ key = 'auto'+(auto++); }
+      if(!named[key]){ named[key]=[]; order.push(key); }
+      named[key].push(el);
+    });
+    return order.map(function(k){return named[k];});
+  }
+  function revealFrag(slide, f){
+    var g = fragGroups(slide)[f]; if(!g) return;
+    g.forEach(function(el){
+      if(MOTION){ gsap.to(el,{opacity:1,y:0,duration:.4,ease:'power2.out',overwrite:true}); }
+      else { el.style.opacity=1; el.style.transform='none'; }
+    });
+  }
+  function hideFrag(slide, f){
+    var g = fragGroups(slide)[f]; if(!g) return;
+    g.forEach(function(el){ if(MOTION) gsap.set(el,{opacity:0,y:10}); else { el.style.opacity=0; } });
+  }
+  function resetFrags(slide){ fragGroups(slide).forEach(function(g,idx){ hideFrag(slide, idx); }); }
+
+  /* ---------- chart animations ---------- */
+  var CHART_INIT = {};
+  CHART_INIT['slide-intro'] = function(){
+    if(!MOTION) return;
+    var lines=['op-ob','op-hy'].map(function(id){return document.getElementById(id);});
+    var pp=document.getElementById('op-pp');
+    [lines[0],lines[1],pp].forEach(function(l){ if(l){ var len=l.getTotalLength(); gsap.set(l,{strokeDasharray:len, strokeDashoffset:len}); } });
+    gsap.to(lines[0],{strokeDashoffset:0,duration:.8,ease:'power1.inOut'});
+    gsap.to(lines[1],{strokeDashoffset:0,duration:.8,delay:.3,ease:'power1.inOut'});
+    gsap.to(pp,{strokeDashoffset:0,duration:1.0,delay:.6,ease:'power1.inOut'});
+    var zone=document.getElementById('op-zone');
+    if(zone) gsap.fromTo(zone,{opacity:0},{opacity:1,delay:1.4,duration:.5});
+  };
+  CHART_INIT['slide-problem'] = function(){
+    if(!MOTION) return;
+    var cells=document.querySelectorAll('#slide-problem .leakcell');
+    gsap.fromTo(cells,{opacity:0,scale:.5,transformOrigin:'center'},{opacity:1,scale:1,duration:.28,stagger:.04,ease:'back.out(1.6)'});
+  };
+  CHART_INIT['slide-oof'] = function(){
+    if(!MOTION) return;
+    var bars=document.querySelectorAll('#slide-oof .oofbar');
+    bars.forEach(function(b){ var w=b.getAttribute('width'); gsap.set(b,{attr:{width:0}}); gsap.to(b,{attr:{width:w},duration:.7,delay:.1,ease:'power2.out'}); });
+  };
+  CHART_INIT['slide-topk'] = function(){
+    if(!MOTION) return;
+    var line=document.getElementById('topk-line');
+    var pts=document.querySelectorAll('#slide-topk .topk-pt');
+    var gain=document.getElementById('topk-gain');
+    var len=line.getTotalLength();
+    gsap.set(line,{strokeDasharray:len, strokeDashoffset:len});
+    gsap.to(line,{strokeDashoffset:0, duration:1.1, ease:'power1.inOut'});
+    gsap.fromTo(pts,{scale:0,transformOrigin:'center'},{scale:1,duration:.3,stagger:.18,delay:.2,ease:'back.out(2)'});
+    if(gain) gsap.fromTo(gain,{opacity:0},{opacity:1,delay:.95,duration:.4});
+  };
+  CHART_INIT['slide-avgridge'] = function(){
+    if(!MOTION) return;
+    var avg=document.getElementById('avg-line'), ridge=document.getElementById('ridge-line'), gap=document.getElementById('gap-k5');
+    [avg,ridge].forEach(function(l){ var len=l.getTotalLength(); gsap.set(l,{strokeDasharray:len, strokeDashoffset:len}); });
+    gsap.to(avg,{strokeDashoffset:0, duration:.9, ease:'power1.inOut'});
+    gsap.to(ridge,{strokeDashoffset:0, duration:.9, delay:.5, ease:'power1.inOut'});
+    if(gap) gsap.fromTo(gap,{opacity:0,scale:.6,transformOrigin:'center'},{opacity:1,scale:1,delay:1.4,duration:.5,ease:'back.out(2)'});
+  };
+  CHART_INIT['slide-mech'] = function(){
+    if(!MOTION) return;
+    var bars=document.querySelectorAll('#slide-mech .coef-bar');
+    bars.forEach(function(b){
+      var w=b.getAttribute('width'), x=b.getAttribute('x'), neg=b.classList.contains('neg');
+      gsap.set(b,{attr:{width:0}});
+      if(neg) gsap.set(b,{attr:{x:450}});
+      gsap.to(b,{attr:{width:w, x:x}, duration:.7, delay:.15, ease:'power2.out'});
+    });
+  };
+  CHART_INIT['slide-concl'] = function(){
+    var el=document.getElementById('concl-r2'); if(!el) return;
+    if(!MOTION){ el.innerHTML='R<sup>2</sup> = 0.8905'; return; }
+    var o={v:0.82};
+    gsap.to(o,{v:0.8905, duration:1.1, ease:'power1.out', onUpdate:function(){ el.innerHTML='R<sup>2</sup> = '+o.v.toFixed(4); }});
+  };
+
+  function finalizeCharts(){
+    ['topk-line','avg-line','ridge-line','op-ob','op-hy','op-pp'].forEach(function(id){ var l=document.getElementById(id); if(l){l.style.strokeDashoffset=0;l.style.strokeDasharray='';} });
+  }
+
+  /* ---------- slide enter ---------- */
+  function onSlideEnter(s){
+    if(document.body.classList.contains('print-mode')) return;
+    if(MOTION){
+      var heads = s.querySelectorAll('.eyebrow, h1, h2, .lede, .pbanner');
+      gsap.fromTo(heads,{opacity:0,y:14},{opacity:1,y:0,duration:.45,stagger:.07,ease:'power2.out',overwrite:true});
+    }
+    var id = s.getAttribute('id');
+    if(CHART_INIT[id]) CHART_INIT[id]();
+  }
+
+  /* ---------- navigation ---------- */
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach(function(s,k){s.classList.toggle('is-active',k===i);});
+    var s=slides[i];
+    fragIndex=0;
+    if(!document.body.classList.contains('print-mode')) resetFrags(s);
+    updateRail(s);
+    counter.textContent=(i+1)+' / '+slides.length;
+    onSlideEnter(s);
+  }
+  function next(){
+    var s=slides[i];
+    var total=fragGroups(s).length;
+    if(fragIndex<total){ revealFrag(s, fragIndex); fragIndex++; return; }
+    if(i<slides.length-1) show(i+1);
+  }
+  function prev(){
+    if(i<=0){ fragIndex=0; return; }
+    show(i-1);
+    var p=slides[i], groups=fragGroups(p);
+    groups.forEach(function(g){ g.forEach(function(el){ if(MOTION) gsap.set(el,{opacity:1,y:0}); else { el.style.opacity=1; el.style.transform='none'; } }); });
+    fragIndex=groups.length;
+  }
+
+  document.addEventListener('keydown',function(e){
+    if(document.body.classList.contains('print-mode')) return;
+    if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){e.preventDefault();next();}
+    else if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();prev();}
+    else if(e.key==='Home'){show(0);}
+    else if(e.key==='End'){show(slides.length-1);}
+    else if(e.key==='f'||e.key==='F'){toggleFs();}
+    else if(e.key==='p'||e.key==='P'){togglePrint();}
+  });
+
+  document.getElementById('viewport').addEventListener('click',function(e){
+    if(document.body.classList.contains('print-mode')) return;
+    next();
+  });
+
+  function toggleFs(){
+    if(!document.fullscreenElement){ document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen(); }
+    else { document.exitFullscreen&&document.exitFullscreen(); }
+  }
+
+  function togglePrint(){
+    document.body.classList.toggle('print-mode');
+    if(document.body.classList.contains('print-mode')){
+      finalizeCharts();
+      slides.forEach(function(s){ s.classList.add('is-active'); fragGroups(s).forEach(function(g){ g.forEach(function(el){ el.style.opacity=1; el.style.transform='none'; }); }); });
+      window.scrollTo(0,0);
+    } else {
+      slides.forEach(function(s,k){s.classList.toggle('is-active',k===i);});
+      fit(); show(i);
+    }
+  }
+
+  function fit(){
+    if(document.body.classList.contains('print-mode')){document.getElementById('stage').style.transform='none';return;}
+    var w=window.innerWidth, h=window.innerHeight;
+    var scale=Math.min(w/1280,h/720);
+    document.getElementById('stage').style.transform='scale('+scale+')';
+  }
+  window.addEventListener('resize',fit);
+
+  setTimeout(function(){hint.style.opacity='0';},4600);
+  document.addEventListener('keydown',function(){hint.style.opacity='0';});
+
+  window.__deck = { show: show, next: next, prev: prev, count: slides.length, get index(){return i;} };
+
+  fit(); show(0);
+})();
+</script>
+</body>
+</html>
